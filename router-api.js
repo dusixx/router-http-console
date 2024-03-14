@@ -6,6 +6,8 @@ import {
   waitForResult,
 } from './helpers/utils.js';
 
+import { RouterError } from './helpers/error.js';
+
 import {
   dhcpWanParaMap,
   statusParaMap,
@@ -15,7 +17,6 @@ import {
 import {
   userRpm,
   routerDefaults,
-  RouterError,
   axiosInstance,
   getRouterErrorByCode,
 } from './helpers/router-utils.js';
@@ -43,7 +44,7 @@ export default class Router {
   /**
    *
    * @param {string} url
-   * @param {object} params
+   * @param {object} params - url params
    * @param {object} config - axios config
    * @returns
    */
@@ -101,15 +102,13 @@ export default class Router {
     return this.#fetchTimeout;
   }
 
-  get isAlive() {
-    return (async () => {
-      try {
-        await this.#fetch({ url: userRpm.QUICK_SETUP });
-        return true;
-      } catch {
-        return false;
-      }
-    })();
+  async isAlive() {
+    try {
+      await this.#fetch({ url: userRpm.QUICK_SETUP });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async getStatus() {
@@ -159,6 +158,7 @@ export default class Router {
     // get current mtu size
     let res = await this.#fetch({ url: userRpm.WAN_DYNAMIC_IP });
     const { parsedPara: a } = parseRouterParaArrays(res);
+
     // set new hostname (mtu required)
     res = await this.#fetch({
       url: userRpm.WAN_DYNAMIC_IP,
@@ -169,6 +169,7 @@ export default class Router {
       },
     });
     const { parsedPara: b } = parseRouterParaArrays(res);
+
     return b.dhcpInf[26] || "''";
   }
 
@@ -180,7 +181,7 @@ export default class Router {
 
   async reboot() {
     const start = performance.now();
-    const action = async () => await this.isAlive;
+    const action = this.isAlive.bind(this);
     const delay = 500;
 
     await this.#fetch({

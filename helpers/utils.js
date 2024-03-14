@@ -1,14 +1,18 @@
-import { performance } from './process.js';
-import { RouterError } from './router-utils.js';
+import { CustomError, TimeoutError } from './error.js';
+
+const toStr = Object.prototype.toString;
+export const typeOf = v => toStr.call(v).slice(8, -1);
 
 export const isStr = v => typeof v === 'string';
 export const isFunc = v => typeof v === 'function';
 export const isNum = v => !isNaN(v - parseFloat(v));
+export const isInt = v => isNum(v) && Number.isInteger(v);
+export const isPositiveInt = v => isInt(v) && v > 0;
 export const isArray = v => v && Array.isArray(v);
 export const isNonEmptyStr = v => v && isStr(v);
 export const isNumOrStr = v => isNum(v) || isNonEmptyStr(v);
 
-export const msToEta = ms => [
+export const msToTime = ms => [
   ms / (24 * 3600), // days
   (ms % (24 * 3600)) / 3600, // hours
   ((ms % (24 * 3600)) % 3600) / 60, // mins
@@ -39,21 +43,31 @@ export const waitForResult = ({ action, args, result, delay, timeout }) => {
 
   return new Promise(async (resolve, reject) => {
     let ret;
-    let wasRejected;
+    let timeIsUp;
+    let timerId;
+    let actionError;
 
-    setTimeout(() => {
-      wasRejected = true;
-      reject(new RouterError(`timeout of ${timeout}ms exceeded`));
-    }, timeout);
-
+    // setting a timeout
+    if (isPositiveInt(timeout)) {
+      timerId = setTimeout(() => (timeIsUp = true), timeout);
+    }
+    // waiting for action result
     do {
       await pause(delay);
       try {
-        const ret = await action(...args);
+        ret = await action(...args);
       } catch (err) {
-        reject(new RouterError(err));
+        actionError = err;
+        break;
       }
-    } while (ret !== result && !wasRejected);
-    resolve(result);
+    } while (!timeIsUp && ret !== result);
+
+    clearTimeout(timerId);
+
+    return actionError
+      ? reject(actionError)
+      : timeIsUp
+      ? reject(new TimeoutError(`timeout of ${timeout}ms exceeded`))
+      : resolve(result);
   });
 };

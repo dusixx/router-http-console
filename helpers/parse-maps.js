@@ -1,5 +1,5 @@
 import { parseTaggedValue, parseSelectOption } from './parse.js';
-import { msToEta } from './utils.js';
+import { msToTime } from './utils.js';
 
 export const statusParaMap = {
   statusPara: {
@@ -8,7 +8,7 @@ export const statusParaMap = {
     hardware: 6,
 
     uptime: ({ statusPara: a }) => {
-      const arr = msToEta(a[4]);
+      const arr = msToTime(a[4]);
       return `${~~arr[0]} days ${arr
         .slice(1)
         .map(v => `${~~v}`.padStart(2, '0'))
